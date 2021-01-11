@@ -131,10 +131,8 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     {
       // Start Reading sensor
     sensorValue = analogRead(A0); 
-    serial_print(LDR_PIN,sensorValue);
-    vTaskDelay( 675 / portTICK_PERIOD_MS );
-
-
+    // serial_print(LDR_PIN,sensorValue);
+    // vTaskDelay( 1000 / portTICK_PERIOD_MS );
     int chk = DHT.read11(DHT11_PIN);
     Serial.print("{\"gpio\":");
     Serial.print(DHT11_PIN);
@@ -143,7 +141,7 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     Serial.print(DHT.temperature);
     Serial.print(",\"Humidity\":");
     Serial.print(DHT.humidity);   
-    Serial.print("]}");
+    Serial.println("]}");
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s
     } 
 }
