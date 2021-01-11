@@ -10,7 +10,8 @@ const int RELAY2_FAN_PIN = 31;
 const int LED_PIN = 32;
 const int ECHO_PIN = 3;
 const int TRIG_PIN = 2;
-const int DHT11_PIN =7;
+const int DHT11_PIN = 7;
+const int LDR_PIN = A0;
 
 //Deklarasi variable
 bool buffer_state = true;
@@ -20,7 +21,17 @@ void Task_read_sensors( void *pvParameters ); // Task untuk membaca sensor DHT11
 void Task_Ultrasound( void *pvParameters ); // Task untuk HCSR04, untuk mendeteksi keadaan sekitar saat terdeteksi manusia
 void Task_Ultrasound_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
 
-int sensor_ultrasound_HCSR04(int trigpin, int echopin, bool read_data =true)
+
+
+void serial_print(int pin, bool param){
+        Serial.print("{\"gpio\":");
+        Serial.print(pin);
+        Serial.print(",\"value\":");
+        Serial.print(param);
+        Serial.println("}");
+
+}
+int sensor_ultrasound_HCSR04(int trigpin, int echopin, bool read_data =false)
 {
 /* 
 fungsi untuk membaca HC-SR04 sensor 
@@ -78,11 +89,15 @@ void set_control(bool lamp_state,bool fan_state, bool led_state ){
 
 void setup()
 {   
+    // Inisialisasi sensor pin
+      pinMode(DHT11_PIN, INPUT); // Sets the LED_PIN as an OUPUT
+      pinMode(DHT11_PIN, INPUT); // Sets the LED_PIN as an OUPUT
+    //  Inisialisasi Aktuator Pin
       pinMode(TRIG_PIN, OUTPUT); // Sets the trigPin as an OUTPUT
       pinMode(ECHO_PIN, INPUT); // Sets the echoPin as an INPUT
       pinMode(RELAY1_LAMP_PIN, OUTPUT); // Sets the RELAY1_LAMP_PIN as an OUTPUT
-      pinMode(RELAY2_FAN_PIN, OUTPUT); // Sets the RELAY2_FAN_PIN as an OUTPUT
       pinMode(LED_PIN, OUTPUT); // Sets the LED_PIN as an OUPUT
+      pinMode(RELAY2_FAN_PIN, OUTPUT); // Sets the RELAY2_FAN_PIN as an OUTPUT
       xTaskCreate(
         Task_read_sensors
         , "Blink" 
@@ -115,15 +130,20 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     for (;;) 
     {
       // Start Reading sensor
-    int chk = DHT.read11(DHT11_PIN);
     sensorValue = analogRead(A0); 
-    delay(60);
-    // Mengirim hasil pengukuran 
-    Serial.println("Lampu = "+ String(sensorValue));
-    Serial.print("Temperature = ");
-    Serial.println(DHT.temperature);
-    Serial.print("Humidity = ");
-    Serial.println(DHT.humidity);   
+    serial_print(LDR_PIN,sensorValue);
+    vTaskDelay( 675 / portTICK_PERIOD_MS );
+
+
+    int chk = DHT.read11(DHT11_PIN);
+    Serial.print("{\"gpio\":");
+    Serial.print(DHT11_PIN);
+    Serial.print(",\"value\":[");
+    Serial.print("{\"temperature\":");
+    Serial.print(DHT.temperature);
+    Serial.print(",\"Humidity\":");
+    Serial.print(DHT.humidity);   
+    Serial.print("]}");
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s
     } 
 }
@@ -135,24 +155,24 @@ void Task_Ultrasound(void *pvParameters) // This is a task.
     int param = 97;
     for (;;)
     { 
-      bool start = get_person_state(param);
-      if (!start || buffer_state!=start){
+      bool read_val = get_person_state(param);
+      if (!read_val || buffer_state!=read_val){
         for (int i= 0;i<5;i++){
-          start= start || get_person_state(param);
+          read_val= read_val || get_person_state(param);
           delay(10);
-          if(start){break;} 
+          if(read_val){break;} 
         }
         
-      if (start != buffer_state){
-          buffer_state = start;
-          set_control(!start,!start,!start);
+      if (read_val != buffer_state){
+          buffer_state = read_val;
+          set_control(!read_val,!read_val,!read_val);
           }
-      if(!start){
+      if(!read_val){
           xTaskCreate(Task_Ultrasound_nopeople, "Detecting no People", 128, NULL, 2, NULL );
           vTaskDelete(NULL);
         }
       }
-      
+      serial_print(ECHO_PIN,read_val);
       vTaskDelay( 100000 / portTICK_PERIOD_MS ); 
     }
 }
@@ -160,20 +180,20 @@ void Task_Ultrasound(void *pvParameters) // This is a task.
 void Task_Ultrasound_nopeople( void *pvParameters ){
     (void) pvParameters;
     Serial.begin(9600);
-    bool start = false;
+    bool buffer = false;
     int param = 97;
     while(true){
       for (int i= 0;i<5;i++)
         {
-        start= start || get_person_state(param);
+        buffer= buffer || get_person_state(param);
         delay(10);
-        if(start){
+        if(buffer){
         xTaskCreate(Task_Ultrasound, "Detecting People", 128, NULL, 2, NULL );
         // Serial.write()
         vTaskDelete(NULL);
           }
         }
-        Serial.println("Person isn't Detected");
+        serial_print(ECHO_PIN,buffer);
         // Serial.write()
         vTaskDelay( 20000 / portTICK_PERIOD_MS );
         
