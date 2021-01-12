@@ -23,19 +23,23 @@ void Task_Ultrasound_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk
 
 
 
-void serial_print_gpio_int(int pin, int param,String val="value" ){
+
+void serial_print_bool(int pin, bool param ){
         Serial.print("{\"gpio\":");
         Serial.print(pin);
-        Serial.print(",\""+val+"\":");
+        Serial.print(",\"value\":");
         Serial.print(param);
         Serial.println("}");
 }
-void serial_print_gpio(int pin, bool param,String val="value" ){
+void serial_print_dht11(int pin, int param1,int param2){
         Serial.print("{\"gpio\":");
         Serial.print(pin);
-        Serial.print(",\""+val+"\":");
-        Serial.print(param);
-        Serial.println("}");
+        Serial.print(",\"value\":");
+        Serial.print("{\"temperature\":");
+        Serial.print(param1);
+        Serial.print(",\"humidity\":");
+        Serial.print(param2);
+        Serial.println("}}");
 }
 
 int sensor_ultrasound_HCSR04(int trigpin, int echopin, bool read_data =false)
@@ -92,6 +96,12 @@ void set_control(bool lamp_state,bool fan_state, bool led_state ){
   digitalWrite(RELAY1_LAMP_PIN, lamp_state);
   digitalWrite(RELAY2_FAN_PIN, fan_state);
   digitalWrite(LED_PIN, led_state);
+  delay(500);
+  serial_print_bool(RELAY1_LAMP_PIN,lamp_state);
+  delay(500);
+  serial_print_bool(RELAY2_FAN_PIN,fan_state);
+  delay(5000);
+  serial_print_bool(LED_PIN,led_state);
   }
 
 void setup()
@@ -133,18 +143,18 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
 {   
     (void) pvParameters;
     int sensorValue ;
-    Serial.begin(9600);
+    Serial.begin(115200);
     for (;;) 
     {
       // Start Reading sensor
     sensorValue = analogRead(A0); 
-    serial_print_gpio(LDR_PIN,sensorValue);
+    if (sensorValue<500){
+      serial_print_bool(LDR_PIN,1);
+    }else serial_print_bool(LDR_PIN,0);
+    
     vTaskDelay( 675 / portTICK_PERIOD_MS );
     int chk = DHT.read11(DHT11_PIN);
-    serial_print_gpio_int(DHT11_PIN,DHT.temperature,"value_temperature");
-    vTaskDelay( 675 / portTICK_PERIOD_MS );
-    serial_print_gpio_int(DHT11_PIN,DHT.humidity,"value_humidity");
-    
+    serial_print_dht11(DHT11_PIN,DHT.temperature,DHT.humidity);
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s
     } 
 }
@@ -152,7 +162,7 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
 void Task_Ultrasound(void *pvParameters) // This is a task.
 {
     (void) pvParameters;
-    Serial.begin(9600);
+    Serial.begin(115200);
     int param = 97;
     for (;;)
     { 
@@ -173,14 +183,14 @@ void Task_Ultrasound(void *pvParameters) // This is a task.
           buffer_state = read_val;
           set_control(!read_val,!read_val,!read_val);
           }
-      serial_print_gpio(ECHO_PIN,read_val);
+      serial_print_bool(ECHO_PIN,read_val);
       vTaskDelay( 100000 / portTICK_PERIOD_MS ); 
     }
 }
 
 void Task_Ultrasound_nopeople( void *pvParameters ){
     (void) pvParameters;
-    Serial.begin(9600);
+    Serial.begin(115200);
     bool buffer = false;
     int param = 97;
     while(true){
@@ -196,8 +206,9 @@ void Task_Ultrasound_nopeople( void *pvParameters ){
         }
         if (buffer == false){
          set_control(!buffer,!buffer,!buffer);
+         
           }
-        serial_print_gpio(ECHO_PIN,buffer);
+        serial_print_bool(ECHO_PIN,buffer);
         // Serial.write()
         vTaskDelay( 20000 / portTICK_PERIOD_MS );
         

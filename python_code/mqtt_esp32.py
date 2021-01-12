@@ -1,9 +1,9 @@
 import paho.mqtt.client as mqtt
 
-MQTT_ADDRESS = '192.168.0.8'
-MQTT_USER = 'test'
-MQTT_PASSWORD = 'test'
-MQTT_TOPIC = 'home/+/+'
+MQTT_ADDRESS = 'localhost'
+# MQTT_USER = 'mosquit'
+# MQTT_PASSWORD = 'test'
+MQTT_TOPIC = 'door/#'
 
 
 def on_connect(client, userdata, flags, rc):
@@ -19,7 +19,7 @@ def on_message(client, userdata, msg):
 
 def main():
     mqtt_client = mqtt.Client()
-    mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
+    # mqtt_client.username_pw_set(MQTT_USER, MQTT_PASSWORD)
     mqtt_client.on_connect = on_connect
     mqtt_client.on_message = on_message
 
