@@ -5,7 +5,7 @@ Untuk kemaslahatan coding mengcoding
 Main code di src :
 - SRC:
     - mainArduinoMega.cpp   => Arduinomega.ino
-    - mainEsp32.cpp         => ESP32.ino
+    - mainEsp32.cpp         => ESP32.ino // Error library tidak usah dipedulikan
 - Python Code:
     #ONGOING
 <br>
