@@ -1,19 +1,23 @@
 #include <Arduino.h>
 #include <WiFi.h>
 #include <PubSubClient.h>
+#include <ArduinoJson.h>
 
 
-char* SSID = "$"; 
-const char* WIFI_PASSWORD = "$";
-const char* MQTT_SERVER = "192.168.2.137";
-char* topic_esp="RPI/esp32/status";
+char* SSID = "naufalroom"; 
+const char* WIFI_PASSWORD = "m0dal_d0ng";
+const char* THINGSBOARD = "demo.thingsboard.io";
+const char* CLIENT_ID = "ESP32";
+const char* USER_NAME = "ESP32ku";
+const char* PASS_MQTT = "ESP32ku";
+const char* topic_esp="RPI/esp32/status";
 // const char* PERSON_DETECTED = "door/person detected";
 // const char* DOOR_SENSOR_TOPIC = "door/door state";
 // const char* LAMP_RELAY_TOPIC = "door/lamp state";
 // const char* CLIENT_ID = "door_v1"; // MQTT client ID
-
+// ThingsBoard tb(espClient);
 WiFiClient espClient;
-PubSubClient client(espClient);
+PubSubClient client(THINGSBOARD,1883,espClient);
 const int TRIG_PIN = 2;
 const int ECHO_PIN = 15;
 const int RELAY_LAMP_PIN =0;
@@ -27,21 +31,9 @@ boolean buffer_lamp = false;
 int timer =20*60;
 int param = 80;
 int ultrasound_range ;
-// bool get_person_state(int param, bool print=false){
-// /* 
-// Fungsi untuk mendapatkan keadaan manusi sekarang 
-// param param : set jarak yang ditentukan untuk mengindikasikan seseorang sedang berkerja
-// return : boolean keadaan manusia 1 indikasi ada manusia dan 0 indikasi tidak ada manusia
-//  */
-//   bool flag =0;
-//   int buffer_range = sensor_ultrasound_HCSR04(TRIG_PIN,ECHO_PIN,print);
-//   if (buffer_range<param){
-//     flag=flag||1;
-//     }
-//     else flag=flag&&1;
-//     delay(10);
-//   return flag;
-//   }
+bool subscribed = false;
+
+
 
 int sensor_ultrasound_HCSR04(int trigpin=TRIG_PIN, int echopin=ECHO_PIN, bool read_data =true)
 {
@@ -92,7 +84,6 @@ void timer_lamp_on(int timer, int range){
       int start = millis();
       int lamp ;
       lamp_on(true,automatic);
-      int ultrasound= read_ultrasound_sensor(false);
       delay(2000);
       Serial.println("Start timer");
       while((start-millis() )>timer){
@@ -114,7 +105,7 @@ void timer_lamp_on(int timer, int range){
       return;
 }
 
-void setup_wifi() {
+bool setup_wifi() {
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -126,50 +117,30 @@ void setup_wifi() {
   while (WiFi.status() != WL_CONNECTED) {
     delay(500);
     Serial.print(".");
-  }
-
+ }
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+  return true;
 }
-// void callback(char* topic, byte* message, unsigned int length) {
-//   Serial.print("Message arrived on topic: ");
-//   Serial.print(topic);
-//   Serial.print(". Message: ");
-//   String messageTemp;
-  
-//   for (int i = 0; i < length; i++) {
-//     Serial.print((char)message[i]);
-//     messageTemp += (char)message[i];
-//   }
-//   Serial.println();
 
-//   // Feel free to add more if statements to control more GPIOs with MQTT
-
-//   // If a message is received on the topic esp32/output, you check if the message is either "on" or "off". 
-//   // Changes the output state according to the message
-//   if (String(topic) == "esp32/output") {
-//     Serial.print("Changing output to ");
-//     if(messageTemp == "on"){
-//       Serial.println("on");
-//       digitalWrite(ledPin, HIGH);
-//     }
-//     else if(messageTemp == "off"){
-//       Serial.println("off");
-//       digitalWrite(ledPin, LOW);
-//     }
-//   }
-// }
+void connect_to_MQTT(bool wifi = true){
+  setup_wifi();
+  if (client.connect(CLIENT_ID, USER_NAME, PASS_MQTT)) {
+    Serial.println("Connected to MQTT Broker!");
+  }
+  else {
+    Serial.println("Connection to MQTT Broker failed...");
+  }
+}
 
 void reconnect() {
-  // Loop until we're reconnected
+  
   while (!client.connected()) {
     Serial.print("Attempting MQTT connection...");
-    // Attempt to connect
     if (client.connect("ESP8266Client")) {
       Serial.println("connected");
-      // Subscribe
       client.subscribe("esp32/output");
     } else {
       Serial.print("failed, rc=");
@@ -181,10 +152,47 @@ void reconnect() {
   }
 }
 
+void publish_bool(String type_string,int val){
+   StaticJsonDocument<256> JSONbuffer;
+   char buffer[256];
+   JSONbuffer[type_string] = val;
+   size_t n = serializeJson(JSONbuffer, buffer);
+  //  serializeJson(JSONbuffer, JSONmessageBuffer);
+  if (client.publish(topic_esp, buffer,n)) {
+      Serial.println(buffer);
+    }
+  // Again, client.publish will return a boolean value depending on whether it succeded or not.
+  // If the message failed to send, we will try again, as the connection may have broken.
+  else {
+    Serial.println("Reconnecting to MQTT Broker and trying again");
+    client.connect(CLIENT_ID, USER_NAME, PASS_MQTT);
+    delay(10); // This delay ensures that client.publish doesn't clash with the client.connect call
+    client.publish(topic_esp, buffer,n);
+    Serial.println(buffer);
+    }
+  }
+
+void publish_string(String type_string,String val){
+   StaticJsonDocument<256> JSONbuffer;
+   char buffer[256];
+   JSONbuffer[type_string] = val;
+   size_t n = serializeJson(JSONbuffer, buffer);
+  if (client.publish(topic_esp, buffer,n)) {
+      Serial.println( buffer);
+    }
+  else {
+    Serial.println("Reconnecting to MQTT Broker and trying again");
+    client.connect(CLIENT_ID, USER_NAME, PASS_MQTT);
+    delay(10); 
+    client.publish(topic_esp, buffer  ,n);
+    Serial.println(buffer);
+    }
+  }
+
 void setup() {
   // put your setup code here, to run once:
-  client.setServer(MQTT_SERVER, 1883);
-//   client.setCallback(callback);
+  // client.setServer(MQTT_SERVER, 1883);
+  //   client.setCallback(callback);
   // pinMode(LDR_PIN,INPUT);
   pinMode(RELAY_LAMP_PIN,OUTPUT);
   pinMode(ECHO_PIN,INPUT);
@@ -199,6 +207,7 @@ delay(500);
 if (lamp!=buffer_lamp) {
   buffer_lamp =lamp;
   Serial.println("Lamp state "+String(lamp));
+  
 }
 int buffer = read_ultrasound_sensor(false);
 
