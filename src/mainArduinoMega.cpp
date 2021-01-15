@@ -22,8 +22,6 @@ void Task_Ultrasound( void *pvParameters ); // Task untuk HCSR04, untuk mendetek
 void Task_Ultrasound_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
 
 
-
-
 void serial_print_bool(int pin, bool param ){
         Serial.print("{\"gpio\":");
         Serial.print(pin);
@@ -145,14 +143,7 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     int sensorValue ;
     Serial.begin(115200);
     for (;;) 
-    {
-      // Start Reading sensor
-    sensorValue = analogRead(A0); 
-    if (sensorValue<500){
-      serial_print_bool(LDR_PIN,1);
-    }else serial_print_bool(LDR_PIN,0);
-    
-    vTaskDelay( 675 / portTICK_PERIOD_MS );
+    {    
     int chk = DHT.read11(DHT11_PIN);
     serial_print_dht11(DHT11_PIN,DHT.temperature,DHT.humidity);
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s
