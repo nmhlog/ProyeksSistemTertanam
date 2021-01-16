@@ -11,13 +11,12 @@ const int LED_PIN = 32;
 const int ECHO_PIN = 3;
 const int TRIG_PIN = 2;
 const int DHT11_PIN = 7;
-const int LDR_PIN = A0;
 
 //Deklarasi variable
 bool buffer_state = true;
 dht DHT;
 //Deklarasi Task
-void Task_read_sensors( void *pvParameters ); // Task untuk membaca sensor DHT11,LDR
+void Task_read_sensors( void *pvParameters ); // Task untuk membaca sensor DHT11,
 void Task_Ultrasound( void *pvParameters ); // Task untuk HCSR04, untuk mendeteksi keadaan sekitar saat terdeteksi manusia
 void Task_Ultrasound_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
 
@@ -143,7 +142,7 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     int sensorValue ;
     Serial.begin(115200);
     for (;;) 
-    {    
+    {
     int chk = DHT.read11(DHT11_PIN);
     serial_print_dht11(DHT11_PIN,DHT.temperature,DHT.humidity);
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s

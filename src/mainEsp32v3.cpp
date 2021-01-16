@@ -1,15 +1,16 @@
 #include <Arduino.h>
 #include <WiFi.h>
-#include <PubSubClient.h>
-#include <ArduinoJson.h>
+#include <ThingsBoard.h>   
 
-
+#define MENIT 60000;
+#define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
 char* SSID = "#"; 
 const char* WIFI_PASSWORD = "#";
 const char* THINGSBOARD = "demo.thingsboard.io";
-const char* CLIENT_ID = "ESP32";
-const char* USER_NAME = "#";
-const char* PASS_MQTT = "#";
+const char * TOKEN = "#";
+// const char* CLIENT_ID = "ESP32";
+// const char* USER_NAME = "ESP32ku";
+// const char* PASS_MQTT = "ESP32ku";
 const char* topic_pub="v1/devices/me/telemetry";
 // const char* PERSON_DETECTED = "door/person detected";
 // const char* DOOR_SENSOR_TOPIC = "door/door state";
@@ -17,6 +18,7 @@ const char* topic_pub="v1/devices/me/telemetry";
 // const char* CLIENT_ID = "door_v1"; // MQTT client ID
 // ThingsBoard tb(espClient);
 WiFiClient espClient;
+ThingsBoard tb(espClient);
 PubSubClient client(THINGSBOARD,1883,espClient);
 const int TRIG_PIN = 2;
 const int ECHO_PIN = 15;
@@ -29,14 +31,12 @@ boolean automatic= false;
 boolean lamp_state = false;
 boolean door_state =false;
 boolean buffer_lamp = false;
-int timer =20*60;
+int timer = 10;
 int param = 80;
 int ultrasound_range ;
 bool subscribed = false;
 
-
-
-bool setup_wifi() {
+void setup_wifi_mqtt() {
   delay(10);
   // We start by connecting to a WiFi network
   Serial.println();
@@ -53,17 +53,13 @@ bool setup_wifi() {
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
-  return true;
-}
-
-void connect_to_MQTT(bool wifi = true){
-  setup_wifi();
-  if (client.connect(CLIENT_ID, USER_NAME, PASS_MQTT)) {
+  if (tb.connect(THINGSBOARD, TOKEN)) {
     Serial.println("Connected to MQTT Broker!");
   }
   else {
     Serial.println("Connection to MQTT Broker failed...");
   }
+
 }
 
 void reconnect() {
@@ -83,42 +79,42 @@ void reconnect() {
   }
 }
 
-void publish_bool(String type_string,int val){
-   StaticJsonDocument<256> JSONbuffer;
-   char buffer[256];
-   JSONbuffer[type_string] = val;
-   size_t n = serializeJson(JSONbuffer, buffer);
+void publish_bool(const char* type_string, bool val){
+  //  StaticJsonDocument<256> JSONbuffer;
+  //  char buffer[256];
+  //  JSONbuffer[type_string] = val;
+  //  size_t n = serializeJson(JSONbuffer, buffer);
   //  serializeJson(JSONbuffer, JSONmessageBuffer);
-  if (client.publish(topic_pub, buffer,n)) {
-      Serial.println(buffer);
+  if (tb.sendTelemetryBool(type_string,val)) {
+      Serial.println("Publish Berhasil........");
     }
   // Again, client.publish will return a boolean value depending on whether it succeded or not.
   // If the message failed to send, we will try again, as the connection may have broken.
   else {
     Serial.println("Reconnecting to MQTT Broker and trying again");
-    client.connect(CLIENT_ID, USER_NAME, PASS_MQTT);
+    tb.connect(THINGSBOARD, TOKEN);
     delay(10); // This delay ensures that client.publish doesn't clash with the client.connect call
-    client.publish(topic_pub, buffer,n);
-    Serial.println(buffer);
+    tb.sendTelemetryBool(type_string,val);
+    Serial.println("Publish Berhasil........");
     }
   }
 
-void publish_string(String type_string,String val){
-   StaticJsonDocument<256> JSONbuffer;
-   char buffer[256];
-   JSONbuffer[type_string] = val;
-   size_t n = serializeJson(JSONbuffer, buffer);
-  if (client.publish(topic_pub, buffer,n)) {
-      Serial.println( buffer);
-    }
-  else {
-    Serial.println("Reconnecting to MQTT Broker and trying again");
-    client.connect(CLIENT_ID, USER_NAME, PASS_MQTT);
-    delay(10); 
-    client.publish(topic_pub, buffer  ,n);
-    Serial.println(buffer);
-    }
-  }
+// void publish_string(String key,String val){
+//   //  StaticJsonDocument<256> JSONbuffer;
+//   //  char buffer[256];
+//   //  JSONbuffer[type_string] = val;
+//   //  size_t n = serializeJson(JSONbuffer, buffer);
+//   if (client.publish(topic_pub, buffer,n)) {
+//       Serial.println( buffer);
+//     }
+//   else {
+//     Serial.println("Reconnecting to MQTT Broker and trying again");
+//     tb.connect(THINGSBOARD, TOKEN);
+//     delay(10); 
+//     tb.sendTelemetryBool(key,)
+//     Serial.println(buffer);
+//     }
+//   }
 
 
 int sensor_ultrasound_HCSR04(int trigpin=TRIG_PIN, int echopin=ECHO_PIN, bool read_data =true)
@@ -154,36 +150,37 @@ bool read_ldr_sensor(bool print =false){
   if (print) Serial.println("LDR Sensor :" +String(sensorValue));
   return (sensorValue<500)? true:false;
   }
+
 bool get_lamp_publish(bool lamp){
         
-        int buffer_lamp=read_ldr_sensor();
+        bool buffer_lamp=read_ldr_sensor();
         if (lamp!=buffer_lamp) {
         buffer_lamp =lamp;
         delay(675);
         Serial.println("Lamp state "+String(lamp));
+
         }
-        return lamp
+        return lamp;
 
 }
   
-void lamp_on(boolean print, bool auto_val ){
+void lamp_on(boolean print=false, bool auto_val=automatic ){
   if(!auto_val) digitalWrite(RELAY_LAMP_PIN, LOW);
   delay(600);
   if (print) Serial.println("lampu Hidup");
   }
 
-void lamp_off(boolean print ,bool auto_val ){
+void lamp_off(boolean print=false, bool auto_val=automatic ){
   if(!auto_val) digitalWrite(RELAY_LAMP_PIN, HIGH);
   if (print) Serial.println("lampu mati");
   }
 
-bool timer_door(int timer, int range){
+bool timer_door(int timer_m=timer, int range=param){
       int start = millis();
-      int lamp ;
-      lamp_on(true,automatic);
+      lamp_on();
       delay(2000);
       Serial.println("Start timer");
-      while((start-millis() )>timer){
+      while((start-millis() )>timer_m*1000){
         lamp_state = get_lamp_publish(lamp_state); 
         int buffer = read_ultrasound_sensor(true);
         delay(675);
@@ -197,27 +194,60 @@ bool timer_door(int timer, int range){
       return false;
 }
 
-void timer_lamp_on(int timer){
+void timer_lamp_on(int timer_m=timer){
   int start_timer = millis();
-  lamp_on(true,automatic);
-  bool lamp =true;
-  while((start-millis() )>timer*60000){
-    bool buffer_lamp = read_ldr_sensor(false);
-    if (buffer_lamp!=lamp)
-    {
-      lamp=buffer_lamp;
-      publish_bool("lamp",buffer_lamp);
-    }
+  lamp_on();
+  while((start_timer-millis() )>timer_m*1000){
+    lamp_state = get_lamp_publish(lamp_state);
     
     // if (person_on_chair)
     // {
     //   return;
     // }
 
-  }lamp_off(false,automatic);
+  }lamp_off();
   
 
 }
+
+RPC_Response psetAutomatic(const RPC_Data &data){
+    Serial.println("Received relay lamp");
+    automatic = data;
+    if(automatic)lamp_on();
+    else lamp_off();
+    Serial.println("Automatic set to "+String(automatic));
+
+    return RPC_Response(NULL,automatic);
+}
+
+RPC_Response pgetAutomatic(const RPC_Data &data)
+{
+  Serial.println("Received the get value method");
+
+  return RPC_Response(NULL, automatic);
+}
+
+RPC_Response psetValueTimer(const RPC_Data &data){
+    Serial.println("Received relay lamp");
+    timer = data;
+    Serial.println("Automatic set to "+String(timer));
+
+    return RPC_Response(NULL,timer);
+}
+
+RPC_Response pgetValueTimer(const RPC_Data &data)
+{
+  Serial.println("Received the get value method");
+
+  return RPC_Response(NULL, timer);
+}
+
+RPC_Callback callbacks[] = {
+  { "setRelayLamp",     psetAutomatic },
+  { "getRelayLamp",     pgetAutomatic },
+  { "setValueTimer",    psetValueTimer },
+  { "getValueTimer",    pgetValueTimer },
+};
 
 void setup() {
   
@@ -230,37 +260,74 @@ void setup() {
   pinMode(TRIG_PIN,OUTPUT);
   Serial.begin(115200);
   ultrasound_range = sensor_ultrasound_HCSR04();
-  connect_to_MQTT();
+  setup_wifi_mqtt();
 }
 
 void loop() {
+
+if (WiFi.status() != WL_CONNECTED) {
+    reconnect();
+    return;
+  }
+
+  // Reconnect to ThingsBoard, if needed
+  if (!tb.connected()) {
+    subscribed = false;
+   if (!tb.connect(THINGSBOARD, TOKEN)) {
+      Serial.println("Failed to connect");
+      return;
+    }
+  }
+
+  // Subscribe for RPC, if needed
+  if (!subscribed) {
+    Serial.println("Subscribing for RPC...");
+
+    // Perform a subscription. All consequent data processing will happen in
+    // callbacks as denoted by callbacks[] array.
+    if (!tb.RPC_Subscribe(callbacks, COUNT_OF(callbacks))) {
+      Serial.println("Failed to subscribe for RPC");
+      return;
+    }
+
+    Serial.println("Subscribe done");
+    subscribed = true;
+  }
+
 lamp_state = get_lamp_publish(lamp_state);
 delay(500);
 int buffer = read_ultrasound_sensor(false);
 
-if (buffer<=10&&buffer>2){
-  lamp_on(true,automatic);
-  publish_bool("Relay lamp",true);
-  Serial.println("ultrasound range : "+String(buffer));
-  delay(10000);
+// if (buffer<=10&&buffer>2){
+//   lamp_on(true,automatic);
+//   publish_bool("Relay lamp",true);
+//   Serial.println("ultrasound range : "+String(buffer));
+//   delay(10000);
   
   
-}
+// }
 
 if (buffer>20 && buffer<param)
-{
+{ ultrasound_range=buffer;
   door_state = true;
+  delay(600);
   Serial.println("ultrasound range : "+String(buffer));
   publish_bool("door",door_state);
   if(timer_door(timer,param)) {
-    timer_lamp_on(1);
+    timer_lamp_on();
   }
 }
+if ((buffer-ultrasound_range)>=20){
+  door_state = false;
+  ultrasound_range=buffer;
+  publish_bool("door",door_state);
+  delay(600);
 
-if (!person_on_chair)
-{
-  timer_lamp_on();
 }
+// if (!person_on_chair)
+// {
+//   timer_lamp_on();
+// }
 
 if ((buffer-ultrasound_range)>=2)
 { 
