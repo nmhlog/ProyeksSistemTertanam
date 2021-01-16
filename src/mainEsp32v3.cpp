@@ -34,7 +34,7 @@ int timer = 10;
 int param = 80;
 int ultrasound_range ;
 bool subscribed = false;
-
+bool person_detected = false;
 void setup_wifi_mqtt() {
   delay(10);
   // We start by connecting to a WiFi network
@@ -98,22 +98,6 @@ void publish_bool(const char* type_string, bool val){
     }
   }
 
-// void publish_string(String key,String val){
-//   //  StaticJsonDocument<256> JSONbuffer;
-//   //  char buffer[256];
-//   //  JSONbuffer[type_string] = val;
-//   //  size_t n = serializeJson(JSONbuffer, buffer);
-//   if (client.publish(topic_pub, buffer,n)) {
-//       Serial.println( buffer);
-//     }
-//   else {
-//     Serial.println("Reconnecting to MQTT Broker and trying again");
-//     tb.connect(THINGSBOARD, TOKEN);
-//     delay(10); 
-//     tb.sendTelemetryBool(key,)
-//     Serial.println(buffer);
-//     }
-//   }
 
 
 int sensor_ultrasound_HCSR04(int trigpin=TRIG_PIN, int echopin=ECHO_PIN, bool read_data=false )
@@ -157,7 +141,7 @@ bool get_lamp_publish(bool lamp){
         lamp =buffer_lamp;
         delay(675);
         Serial.println("Lamp state "+String(lamp));
-
+        publish_bool("LDR",lamp);
         }
         return lamp;
 
@@ -209,11 +193,20 @@ bool timer_door(int timer_m=timer, int range=param){
 
 // }
 
+RPC_Response pgetPerson(const RPC_Data &data){
+    Serial.println("Received relay lamp");
+    person_detected = data;
+    
+    Serial.println("person state : "+String(person_detected));
+
+    return RPC_Response(NULL,automatic);
+}
+
 RPC_Response psetAutomatic(const RPC_Data &data){
     Serial.println("Received relay lamp");
     automatic = data;
-    if(automatic)lamp_on();
-    else lamp_off();
+    if(!automatic) digitalWrite(RELAY_LAMP_PIN,LOW);
+    else digitalWrite(RELAY_LAMP_PIN,HIGH);
     Serial.println("Automatic set to "+String(automatic));
 
     return RPC_Response(NULL,automatic);
@@ -246,6 +239,7 @@ RPC_Callback callbacks[] = {
   { "getRelayLamp",     pgetAutomatic },
   { "setValueTimer",    psetValueTimer },
   { "getValueTimer",    pgetValueTimer },
+  { "getPersonState",    pgetPerson },
 };
 
 void setup() {
@@ -263,7 +257,7 @@ void setup() {
 }
 
 void loop() {
-
+delay(500);
 if (WiFi.status() != WL_CONNECTED) {
     reconnect();
     return;
