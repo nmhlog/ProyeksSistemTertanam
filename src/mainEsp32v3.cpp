@@ -4,10 +4,10 @@
 
 #define MENIT 60000;
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
-char* SSID = "#"; 
-const char* WIFI_PASSWORD = "#";
+char* SSID = "naufalroom"; 
+const char* WIFI_PASSWORD = "m0dal_d0ng";
 const char* THINGSBOARD = "demo.thingsboard.io";
-const char * TOKEN = "#";
+const char * TOKEN = "ESP32ku";
 // const char* CLIENT_ID = "ESP32";
 // const char* USER_NAME = "ESP32ku";
 // const char* PASS_MQTT = "ESP32ku";
@@ -23,14 +23,13 @@ PubSubClient client(THINGSBOARD,1883,espClient);
 const int TRIG_PIN = 2;
 const int ECHO_PIN = 15;
 const int RELAY_LAMP_PIN =0;
-const int LDR_PIN = A0; //ternyata pin 34
+const int LDR_PIN = A6; //ternyata pin 34
 long lastMsg = 0;
 char msg[50];
 int value = 0;
-boolean automatic= false;
+boolean automatic= true;
 boolean lamp_state = false;
 boolean door_state =false;
-boolean buffer_lamp = false;
 int timer = 10;
 int param = 80;
 int ultrasound_range ;
@@ -117,7 +116,7 @@ void publish_bool(const char* type_string, bool val){
 //   }
 
 
-int sensor_ultrasound_HCSR04(int trigpin=TRIG_PIN, int echopin=ECHO_PIN, bool read_data =true)
+int sensor_ultrasound_HCSR04(int trigpin=TRIG_PIN, int echopin=ECHO_PIN, bool read_data=false )
 {
 /* 
 fungsi untuk membaca HC-SR04 sensor 
@@ -155,7 +154,7 @@ bool get_lamp_publish(bool lamp){
         
         bool buffer_lamp=read_ldr_sensor();
         if (lamp!=buffer_lamp) {
-        buffer_lamp =lamp;
+        lamp =buffer_lamp;
         delay(675);
         Serial.println("Lamp state "+String(lamp));
 
@@ -165,7 +164,7 @@ bool get_lamp_publish(bool lamp){
 }
   
 void lamp_on(boolean print=false, bool auto_val=automatic ){
-  if(!auto_val) digitalWrite(RELAY_LAMP_PIN, LOW);
+  if(auto_val) digitalWrite(RELAY_LAMP_PIN, LOW);
   delay(600);
   if (print) Serial.println("lampu Hidup");
   }
@@ -176,6 +175,7 @@ void lamp_off(boolean print=false, bool auto_val=automatic ){
   }
 
 bool timer_door(int timer_m=timer, int range=param){
+      Serial.println("Timer door ON");
       int start = millis();
       lamp_on();
       delay(2000);
@@ -194,21 +194,20 @@ bool timer_door(int timer_m=timer, int range=param){
       return false;
 }
 
-void timer_lamp_on(int timer_m=timer){
-  int start_timer = millis();
-  lamp_on();
-  while((start_timer-millis() )>timer_m*1000){
-    lamp_state = get_lamp_publish(lamp_state);
+// void timer_lamp_on(int timer_m=timer){
+//   Serial.println("Timer Lamp ON");
+//   int start_timer = millis();
+//   lamp_on();
+//   while((start_timer-millis() )>timer_m*1000){
+//     lamp_state = get_lamp_publish(lamp_state);
     
-    // if (person_on_chair)
-    // {
-    //   return;
-    // }
+//     // if (person_on_chair)
+//     // {
+//     //   return;
+//     // }
+//   }lamp_off();
 
-  }lamp_off();
-  
-
-}
+// }
 
 RPC_Response psetAutomatic(const RPC_Data &data){
     Serial.println("Received relay lamp");
@@ -271,41 +270,29 @@ if (WiFi.status() != WL_CONNECTED) {
   }
 
   // Reconnect to ThingsBoard, if needed
-  if (!tb.connected()) {
-    subscribed = false;
-   if (!tb.connect(THINGSBOARD, TOKEN)) {
-      Serial.println("Failed to connect");
-      return;
+  if (tb.connected()) {
+    tb.RPC_Subscribe(callbacks, COUNT_OF(callbacks));
     }
-  }
-
-  // Subscribe for RPC, if needed
-  if (!subscribed) {
-    Serial.println("Subscribing for RPC...");
-
-    // Perform a subscription. All consequent data processing will happen in
-    // callbacks as denoted by callbacks[] array.
-    if (!tb.RPC_Subscribe(callbacks, COUNT_OF(callbacks))) {
-      Serial.println("Failed to subscribe for RPC");
-      return;
-    }
-
-    Serial.println("Subscribe done");
-    subscribed = true;
+   else
+   {
+    tb.connect(THINGSBOARD, TOKEN);
+    tb.RPC_Subscribe(callbacks, COUNT_OF(callbacks));
+    Serial.println("Failed to connect");
+    
   }
 
 lamp_state = get_lamp_publish(lamp_state);
 delay(500);
 int buffer = read_ultrasound_sensor(false);
 
-// if (buffer<=10&&buffer>2){
-//   lamp_on(true,automatic);
-//   publish_bool("Relay lamp",true);
-//   Serial.println("ultrasound range : "+String(buffer));
-//   delay(10000);
+if (buffer<=10&&buffer>2){
+  lamp_on(true,automatic);
+  publish_bool("Relay lamp",true);
+  Serial.println("ultrasound range : "+String(buffer));
+  delay(10000);
   
   
-// }
+}
 
 if (buffer>20 && buffer<param)
 { ultrasound_range=buffer;
@@ -314,15 +301,18 @@ if (buffer>20 && buffer<param)
   Serial.println("ultrasound range : "+String(buffer));
   publish_bool("door",door_state);
   if(timer_door(timer,param)) {
-    timer_lamp_on();
+    // timer_lamp_on();
+    // continue;
   }
 }
+Serial.println("ultrasound range : "+String(buffer));
 if ((buffer-ultrasound_range)>=20){
   door_state = false;
   ultrasound_range=buffer;
+  lamp_off();
   publish_bool("door",door_state);
   delay(600);
-
+  
 }
 // if (!person_on_chair)
 // {
@@ -337,5 +327,6 @@ if ((buffer-ultrasound_range)>=2)
 if(buffer==0) Serial.println("Ultrasound doesn't work");
 
 delay(500);
-
+ // Process messages
+  tb.loop();
 }
