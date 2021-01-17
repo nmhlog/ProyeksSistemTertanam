@@ -11,14 +11,17 @@ const int LED_PIN = 32;
 const int ECHO_PIN = 3;
 const int TRIG_PIN = 2;
 const int DHT11_PIN = 7;
+const int LDR_PIN = A0;
 
 //Deklarasi variable
 bool buffer_state = true;
 dht DHT;
 //Deklarasi Task
-void Task_read_sensors( void *pvParameters ); // Task untuk membaca sensor DHT11,
-void Task_Ultrasound( void *pvParameters ); // Task untuk HCSR04, untuk mendeteksi keadaan sekitar saat terdeteksi manusia
-void Task_Ultrasound_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
+void Task_read_sensors( void *pvParameters ); // Task untuk membaca sensor DHT11,LDR
+void Task_Ultrasoundworkdesk( void *pvParameters ); // Task untuk HCSR04, untuk mendeteksi keadaan sekitar saat terdeteksi manusia
+void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
+void Task_Ultrasoundlamp_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
+void Task_Ultrasoundlamp_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
 
 
 void serial_print_bool(int pin, bool param ){
@@ -79,8 +82,6 @@ return : boolean keadaan manusia 1 indikasi ada manusia dan 0 indikasi tidak ada
   return flag;
   }
 
-
-
 void set_control(bool lamp_state,bool fan_state, bool led_state ){
 /* 
   fungsi untuk mengerakkan aktuator.
@@ -134,7 +135,6 @@ void loop()
 {
 // Empty. Things are done in Tasks.
 }
-
  
 void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari sensor
 {   
@@ -142,14 +142,14 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     int sensorValue ;
     Serial.begin(115200);
     for (;;) 
-    {
+    {    
     int chk = DHT.read11(DHT11_PIN);
     serial_print_dht11(DHT11_PIN,DHT.temperature,DHT.humidity);
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s
     } 
 }
  
-void Task_Ultrasound(void *pvParameters) // This is a task.
+void Task_Ultrasoundworkdesk(void *pvParameters) // This is a task.
 {
     (void) pvParameters;
     Serial.begin(115200);
@@ -164,7 +164,7 @@ void Task_Ultrasound(void *pvParameters) // This is a task.
           if(read_val){break;} 
         }
       if(!read_val){
-          xTaskCreate(Task_Ultrasound_nopeople, "Detecting no People", 128, NULL, 2, NULL );
+          xTaskCreate(Task_Ultrasoundworkdesk_nopeople, "Detecting no People", 128, NULL, 2, NULL );
           vTaskDelete(NULL);
         }
 
@@ -178,7 +178,7 @@ void Task_Ultrasound(void *pvParameters) // This is a task.
     }
 }
 
-void Task_Ultrasound_nopeople( void *pvParameters ){
+void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ){
     (void) pvParameters;
     Serial.begin(115200);
     bool buffer = false;
@@ -189,7 +189,7 @@ void Task_Ultrasound_nopeople( void *pvParameters ){
         buffer= buffer || get_person_state(param);
         delay(10);
         if(buffer){
-        xTaskCreate(Task_Ultrasound, "Detecting People", 128, NULL, 2, NULL );
+        xTaskCreate(Task_Ultrasoundworkdesk, "Detecting People", 128, NULL, 2, NULL );
         // Serial.write()
         vTaskDelete(NULL);
           }
