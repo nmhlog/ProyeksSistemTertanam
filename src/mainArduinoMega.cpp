@@ -5,24 +5,20 @@
 #include <stdlib.h>
 
 // Deklarasi Variable pin constant
-const int RELAY1_LAMP_PIN = 30;
-const int RELAY2_FAN_PIN = 31;
 const int LED_PIN = 32;
 const int ECHO_PIN = 3;
 const int TRIG_PIN = 2;
 const int DHT11_PIN = 7;
-const int LDR_PIN = A0;
 
 //Deklarasi variable
 bool buffer_state = true;
+bool automatic = false;
 dht DHT;
+
 //Deklarasi Task
 void Task_read_sensors( void *pvParameters ); // Task untuk membaca sensor DHT11,LDR
 void Task_Ultrasoundworkdesk( void *pvParameters ); // Task untuk HCSR04, untuk mendeteksi keadaan sekitar saat terdeteksi manusia
 void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
-void Task_Ultrasoundlamp_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
-void Task_Ultrasoundlamp_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
-
 
 void serial_print_bool(int pin, bool param ){
         Serial.print("{\"gpio\":");
@@ -31,6 +27,7 @@ void serial_print_bool(int pin, bool param ){
         Serial.print(param);
         Serial.println("}");
 }
+
 void serial_print_dht11(int pin, int param1,int param2){
         Serial.print("{\"gpio\":");
         Serial.print(pin);
@@ -82,7 +79,7 @@ return : boolean keadaan manusia 1 indikasi ada manusia dan 0 indikasi tidak ada
   return flag;
   }
 
-void set_control(bool lamp_state,bool fan_state, bool led_state ){
+void set_control(bool led_state ){
 /* 
   fungsi untuk mengerakkan aktuator.
   param  lamp_state : keadaan lampu 0 hidup || 1 mati
@@ -90,16 +87,9 @@ void set_control(bool lamp_state,bool fan_state, bool led_state ){
   param  led_state  : keadaan kipas 1 hidup || 0 mati
 
  */
-
-  digitalWrite(RELAY1_LAMP_PIN, lamp_state);
-  digitalWrite(RELAY2_FAN_PIN, fan_state);
   digitalWrite(LED_PIN, led_state);
   delay(500);
-  serial_print_bool(RELAY1_LAMP_PIN,lamp_state);
-  delay(500);
-  serial_print_bool(RELAY2_FAN_PIN,fan_state);
-  delay(5000);
-  serial_print_bool(LED_PIN,led_state);
+
   }
 
 void setup()
@@ -110,9 +100,8 @@ void setup()
     //  Inisialisasi Aktuator Pin
       pinMode(TRIG_PIN, OUTPUT); // Sets the trigPin as an OUTPUT
       pinMode(ECHO_PIN, INPUT); // Sets the echoPin as an INPUT
-      pinMode(RELAY1_LAMP_PIN, OUTPUT); // Sets the RELAY1_LAMP_PIN as an OUTPUT
       pinMode(LED_PIN, OUTPUT); // Sets the LED_PIN as an OUPUT
-      pinMode(RELAY2_FAN_PIN, OUTPUT); // Sets the RELAY2_FAN_PIN as an OUTPUT
+
       xTaskCreate(
         Task_read_sensors
         , "Blink" 
@@ -122,7 +111,7 @@ void setup()
         , NULL ); // Fungsi untuk membaca task
  
     xTaskCreate(
-        Task_Ultrasound
+        Task_Ultrasoundworkdesk
         , "Detecting People"
         , 128    
         , NULL
@@ -139,10 +128,10 @@ void loop()
 void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari sensor
 {   
     (void) pvParameters;
-    int sensorValue ;
     Serial.begin(115200);
     for (;;) 
-    {    
+    {
+    // Serial.println("Task_read_sensors work");    
     int chk = DHT.read11(DHT11_PIN);
     serial_print_dht11(DHT11_PIN,DHT.temperature,DHT.humidity);
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s
@@ -153,9 +142,10 @@ void Task_Ultrasoundworkdesk(void *pvParameters) // This is a task.
 {
     (void) pvParameters;
     Serial.begin(115200);
-    int param = 97;
+    int param = 80;
     for (;;)
     { 
+      // Serial.println("Task_Ultrasoundworkdesk work");
       bool read_val = get_person_state(param);
       if (!read_val){
         for (int i= 0;i<5;i++){
@@ -171,7 +161,7 @@ void Task_Ultrasoundworkdesk(void *pvParameters) // This is a task.
       }
       if (read_val){
           buffer_state = read_val;
-          set_control(!read_val,!read_val,!read_val);
+          set_control(!read_val);
           }
       serial_print_bool(ECHO_PIN,read_val);
       vTaskDelay( 100000 / portTICK_PERIOD_MS ); 
@@ -184,6 +174,7 @@ void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ){
     bool buffer = false;
     int param = 97;
     while(true){
+      // Serial.println("Task_Ultrasoundworkdesk_nopeople work");
       for (int i= 0;i<5;i++)
         {
         buffer= buffer || get_person_state(param);
@@ -195,7 +186,8 @@ void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ){
           }
         }
         if (buffer == false){
-         set_control(!buffer,!buffer,!buffer);
+
+         set_control(!buffer);
          
           }
         serial_print_bool(ECHO_PIN,buffer);
