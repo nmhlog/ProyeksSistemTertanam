@@ -10,9 +10,6 @@ const int ECHO_PIN = 3;
 const int TRIG_PIN = 2;
 const int DHT11_PIN = 7;
 
-//Deklarasi variable
-bool buffer_state = true;
-bool automatic = false;
 dht DHT;
 
 //Deklarasi Task
@@ -134,7 +131,8 @@ void loop()
 
 }
  
-void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari sensor
+void Task_read_sensors(void *pvParameters) 
+// Task untuk membaca parameter dari sensor
 {   
     (void) pvParameters;
     Serial.begin(115200);
@@ -149,7 +147,8 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     } 
 }
  
-void Task_Ultrasoundworkdesk(void *pvParameters) // This is a task.
+void Task_Ultrasoundworkdesk(void *pvParameters)
+// Task untuk sistem mendeteksi sistem saat terdeteksi orang.
 {
     (void) pvParameters;
     Serial.begin(115200);
@@ -162,37 +161,38 @@ void Task_Ultrasoundworkdesk(void *pvParameters) // This is a task.
         for (int i= 0;i<5;i++){
           read_val= read_val || get_person_state(param);
           delay(10);
-          if(read_val){break;} 
+          if(read_val) break;
         }
       if(!read_val){
-          xTaskCreate(Task_Ultrasoundworkdesk_nopeople, "Detecting no People", 128, NULL, 2, NULL );
+          xTaskCreate(Task_Ultrasoundworkdesk_nopeople, "Detecting person", 128, NULL, 2, NULL );
           vTaskDelete(NULL);
         }
 
       }
       if (read_val){
-          buffer_state = read_val;
+          read_val;
           set_control(!read_val);
           }
       serial_print_person_detector(ECHO_PIN,read_val);
-      vTaskDelay( 100000 / portTICK_PERIOD_MS ); 
+      vTaskDelay( 100000 / portTICK_PERIOD_MS ); // delay task untuk 100000 = 100s
     }
 }
 
-void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ){
+void Task_Ultrasoundworkdesk_nopeople( void *pvParameters )
+{
+  // Task untuk sistem mendeteksi sistem saat tidak terdeteksi orang.
     (void) pvParameters;
     Serial.begin(115200);
     bool buffer = false;
     int param = 97;
     while(true){
-      // Serial.println("Task_Ultrasoundworkdesk_nopeople work");
+      Serial.println("Task_Ultrasoundworkdesk_nopeople work");
       for (int i= 0;i<5;i++)
         {
         buffer= buffer || get_person_state(param);
         delay(10);
         if(buffer){
-        xTaskCreate(Task_Ultrasoundworkdesk, "Detecting People", 128, NULL, 2, NULL );
-        // Serial.write()
+        xTaskCreate(Task_Ultrasoundworkdesk, "Detecting no person", 128, NULL, 2, NULL );
         vTaskDelete(NULL);
           }
         }
@@ -202,9 +202,9 @@ void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ){
          
           }
         serial_print_person_detector(ECHO_PIN,buffer);
-        // Serial.write()
-        vTaskDelay( 20000 / portTICK_PERIOD_MS );
+        vTaskDelay( 20000 / portTICK_PERIOD_MS );// delay task untuk 20000 = 20s
         
     }
 
 }
+
