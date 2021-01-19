@@ -20,7 +20,14 @@ void Task_read_sensors( void *pvParameters ); // Task untuk membaca sensor DHT11
 void Task_Ultrasoundworkdesk( void *pvParameters ); // Task untuk HCSR04, untuk mendeteksi keadaan sekitar saat terdeteksi manusia
 void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ); // Task untuk HC-SRO4 untuk mendektesi manusia saat tidak ada orang
 
-void serial_print_bool(int pin, bool param ){
+void serial_print_person_detector(int pin, bool param ){
+  /* 
+  fungsi untuk membaca HC-SR04 sensor 
+  param pin     : Pin dari pin echo ultrasound
+  param  param  : Merupakan nilai boolean hasil pendeteksi manusia
+  return integer dari jarak pengukuran
+ */
+
         Serial.print("{\"gpio\":");
         Serial.print(pin);
         Serial.print(",\"value\":");
@@ -29,6 +36,13 @@ void serial_print_bool(int pin, bool param ){
 }
 
 void serial_print_dht11(int pin, int param1,int param2){
+   /* 
+  fungsi untuk membaca HC-SR04 sensor 
+  param   pin     : Pin dari pin dht11 
+  param  param1   : Merupakan nilai hasil pengukuran temperature
+  param  param2   : Merupakan nilai hasil pengukuran kelembaban
+  return integer dari jarak pengukuran
+ */
         Serial.print("{\"gpio\":");
         Serial.print(pin);
         Serial.print(",\"value\":");
@@ -82,8 +96,6 @@ return : boolean keadaan manusia 1 indikasi ada manusia dan 0 indikasi tidak ada
 void set_control(bool led_state ){
 /* 
   fungsi untuk mengerakkan aktuator.
-  param  lamp_state : keadaan lampu 0 hidup || 1 mati
-  param  fan_state  : keadaan kipas 0 hidup || 1 mati
   param  led_state  : keadaan kipas 1 hidup || 0 mati
 
  */
@@ -122,7 +134,7 @@ void setup()
  
 void loop()
 {
-// Empty. Things are done in Tasks.
+
 }
  
 void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari sensor
@@ -131,8 +143,10 @@ void Task_read_sensors(void *pvParameters) // Task untuk membaca parameter dari 
     Serial.begin(115200);
     for (;;) 
     {
-    // Serial.println("Task_read_sensors work");    
+    Serial.println("Task_read_sensors work");    
+    // Fungsi untuk membaca sensor DHT11
     int chk = DHT.read11(DHT11_PIN);
+    // Mengirim 
     serial_print_dht11(DHT11_PIN,DHT.temperature,DHT.humidity);
     vTaskDelay( 20000 / portTICK_PERIOD_MS ); // delay task untuk 20000 = 20s
     } 
@@ -145,7 +159,7 @@ void Task_Ultrasoundworkdesk(void *pvParameters) // This is a task.
     int param = 80;
     for (;;)
     { 
-      // Serial.println("Task_Ultrasoundworkdesk work");
+      Serial.println("Task_Ultrasoundworkdesk work");
       bool read_val = get_person_state(param);
       if (!read_val){
         for (int i= 0;i<5;i++){
@@ -163,7 +177,7 @@ void Task_Ultrasoundworkdesk(void *pvParameters) // This is a task.
           buffer_state = read_val;
           set_control(!read_val);
           }
-      serial_print_bool(ECHO_PIN,read_val);
+      serial_print_person_detector(ECHO_PIN,read_val);
       vTaskDelay( 100000 / portTICK_PERIOD_MS ); 
     }
 }
@@ -190,7 +204,7 @@ void Task_Ultrasoundworkdesk_nopeople( void *pvParameters ){
          set_control(!buffer);
          
           }
-        serial_print_bool(ECHO_PIN,buffer);
+        serial_print_person_detector(ECHO_PIN,buffer);
         // Serial.write()
         vTaskDelay( 20000 / portTICK_PERIOD_MS );
         
