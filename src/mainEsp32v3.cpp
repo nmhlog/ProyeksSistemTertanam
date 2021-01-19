@@ -4,10 +4,10 @@
 
 #define MENIT 60000;
 #define COUNT_OF(x) ((sizeof(x)/sizeof(0[x])) / ((size_t)(!(sizeof(x) % sizeof(0[x])))))
-char* SSID = "naufalroom"; 
-const char* WIFI_PASSWORD = "m0dal_d0ng";
+char* SSID = ""; 
+const char* WIFI_PASSWORD = "";
 const char* THINGSBOARD = "demo.thingsboard.io";
-const char * TOKEN = "ESP32ku";
+const char * TOKEN = "";
 const char* topic_pub="v1/devices/me/telemetry";
 
 WiFiClient espClient;

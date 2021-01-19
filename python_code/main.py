@@ -23,7 +23,7 @@ light_state=False
 fan_state=False
 GPIO.setup(LAMP_PIN_RASPBERRY, GPIO.OUT)
 GPIO.setup(FAN_PIN_RASPBERRY, GPIO.OUT)
-accesstoken= 'ARDUINOMEGA'
+accesstoken= ''
 password = '' #not used
 broker='demo.thingsboard.io'
 topic="v1/devices/me/telemetry"
