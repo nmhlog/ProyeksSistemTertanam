@@ -106,9 +106,6 @@ void set_control(bool led_state ){
 
 void setup()
 {   
-    // Inisialisasi sensor pin
-      pinMode(DHT11_PIN, INPUT); // Sets the LED_PIN as an OUPUT
-      pinMode(DHT11_PIN, INPUT); // Sets the LED_PIN as an OUPUT
     //  Inisialisasi Aktuator Pin
       pinMode(TRIG_PIN, OUTPUT); // Sets the trigPin as an OUTPUT
       pinMode(ECHO_PIN, INPUT); // Sets the echoPin as an INPUT
