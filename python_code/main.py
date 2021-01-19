@@ -21,8 +21,11 @@ fan_state=False
 #  Inisialisasi Setting GPIO sebagai output
 GPIO.setup(LAMP_PIN_RASPBERRY, GPIO.OUT)
 GPIO.setup(FAN_PIN_RASPBERRY, GPIO.OUT)
+<<<<<<< HEAD
 
 # Inisialiasasi setup untuk mqtt handler
+=======
+>>>>>>> 1ec80d37a5a413e47ac18d8228f32772dfe1192a
 accesstoken= ''
 password = '' #not used
 broker='demo.thingsboard.io'
